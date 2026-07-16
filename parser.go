@@ -30,9 +30,8 @@ func Parse(input string, markdown *string, v any) error {
 	if err != nil {
 		return err
 	}
-	if hasFm {
-		*markdown = md
-	}
+
+	*markdown = md
 
 	// lastly, unmarshal the frontmatter into the provided struct
 	if hasFm {

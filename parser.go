@@ -43,6 +43,7 @@ func Parse(input string, markdown *string, v any) error {
 
 func extract(data []byte) (hasFrontmatter bool, frontmatter string, markdown string, err error) {
 	data = bytes.TrimPrefix(data, []byte{0xEF, 0xBB, 0xBF}) // UTF-8 BOM
+	plainMarkdown := strings.TrimRight(string(data), "\r\n")
 
 	sc := bufio.NewScanner(strings.NewReader(string(data)))
 	// falls du große Dateien/Frontmatter hast:
@@ -53,7 +54,7 @@ func extract(data []byte) (hasFrontmatter bool, frontmatter string, markdown str
 		return false, "", "", nil
 	}
 	if strings.TrimRight(sc.Text(), "\r") != "---" {
-		return false, "", "", nil
+		return false, "", plainMarkdown, nil
 	}
 
 	// Frontmatter bis zum nächsten --- sammeln
@@ -78,5 +79,5 @@ func extract(data []byte) (hasFrontmatter bool, frontmatter string, markdown str
 	}
 
 	// Kein schließendes ---
-	return false, "", "", nil
+	return false, "", plainMarkdown, nil
 }

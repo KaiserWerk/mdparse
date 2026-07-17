@@ -2,8 +2,8 @@ package mdparse
 
 import "reflect"
 
-// An InvalidUnmarshalError describes an invalid argument passed to [Unmarshal].
-// (The argument to [Unmarshal] must be a non-nil pointer.)
+// An InvalidUnmarshalError describes an invalid argument passed to [Parse].
+// (The argument to [Parse] must be a non-nil pointer.)
 type InvalidUnmarshalError struct {
 	Type reflect.Type
 }

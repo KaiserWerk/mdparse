@@ -47,6 +47,10 @@ func Read(input string, markdown *string, v any) error {
 	return err
 }
 
+// Parse analyzes the input string and returns a slice of Paragraph representing the parsed content.
+// Paragraph can have different types, such as headers, code blocks, lists, blockquotes, images,
+// and horizontal rules. The order of the paragraphs is not guaranteed to be preserved in the output slice,
+// but each Paragraph has an Order field that indicates its original position in the input.
 func Parse(input string) ([]Paragraph, error) {
 	sc := bufio.NewScanner(strings.NewReader(input))
 	sc.Buffer(make([]byte, 0, 64*1024), 1024*1024)

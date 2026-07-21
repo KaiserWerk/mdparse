@@ -10,16 +10,22 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-func ParseFile(file string, markdown *string, v any) error {
+// ReadFile is like Read, but it reads the input from a file instead of a string.
+func ReadFile(file string, markdown *string, v any) error {
 	content, err := os.ReadFile(file)
 	if err != nil {
 		return err
 	}
 
-	return Parse(string(content), markdown, v)
+	return Read(string(content), markdown, v)
 }
 
-func Parse(input string, markdown *string, v any) error {
+// Read reads the frontmatter and markdown content from the given input string.
+// It returns the markdown content unmodified and unmarshals the frontmatter into
+// the provided struct. The input string is expected to have the frontmatter enclosed
+// between two lines containing only '---'. If no frontmatter is found, the markdown
+// content will be returned as-is, and the provided struct will remain unchanged.
+func Read(input string, markdown *string, v any) error {
 	rv := reflect.ValueOf(v)
 	if rv.Kind() != reflect.Pointer || rv.IsNil() {
 		return &InvalidUnmarshalError{reflect.TypeOf(v)}
@@ -39,6 +45,10 @@ func Parse(input string, markdown *string, v any) error {
 	}
 
 	return err
+}
+
+func Parse(input string) ([]Paragraph, error) {
+	panic("implement me")
 }
 
 func extract(data []byte) (hasFrontmatter bool, frontmatter string, markdown string, err error) {

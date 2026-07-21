@@ -52,6 +52,7 @@ func Parse(input string) ([]Paragraph, error) {
 	sc.Buffer(make([]byte, 0, 64*1024), 1024*1024)
 	var out []Paragraph
 	var cur Paragraph
+	order := 0
 	inCode := false
 
 	appendLine := func(s string) {
@@ -61,44 +62,144 @@ func Parse(input string) ([]Paragraph, error) {
 		cur.Body += s
 	}
 
+	isOrderedList := func(s string) bool {
+		i := 0
+		for i < len(s) && s[i] >= '0' && s[i] <= '9' {
+			i++
+		}
+		return i > 0 && i+1 < len(s) && s[i] == '.' && s[i+1] == ' '
+	}
+
 	for sc.Scan() {
 		line := sc.Text()
 		trimmed := strings.TrimSpace(line)
 
+		// Code fence start/end
 		if strings.HasPrefix(trimmed, "```") || strings.HasPrefix(trimmed, "~~~") {
-			inCode = !inCode
+			if !inCode {
+				if cur.Header != "" || cur.Body != "" {
+					if cur.Type == "" {
+						cur.Type = "content"
+					}
+					cur.Order = order
+					order++
+					out = append(out, cur)
+					cur = Paragraph{}
+				}
+				cur = Paragraph{Type: "code", Body: line}
+				inCode = true
+				continue
+			}
+			// closing fence
+			appendLine(line)
+			inCode = false
+			cur.Order = order
+			order++
+			out = append(out, cur)
+			cur = Paragraph{}
+			continue
+		}
+
+		if inCode {
 			appendLine(line)
 			continue
 		}
 
-		if !inCode && strings.HasPrefix(trimmed, "#") {
-			// flush previous paragraph (set type if missing)
+		// horizontal rule
+		if trimmed == "---" || trimmed == "***" || trimmed == "___" {
 			if cur.Header != "" || cur.Body != "" {
 				if cur.Type == "" {
 					cur.Type = "content"
 				}
+				cur.Order = order
+				order++
+				out = append(out, cur)
+				cur = Paragraph{}
+			}
+			p := Paragraph{Type: "hr", Body: trimmed, Order: order}
+			order++
+			out = append(out, p)
+			continue
+		}
+
+		// ATX header
+		if strings.HasPrefix(trimmed, "#") {
+			if cur.Header != "" || cur.Body != "" {
+				if cur.Type == "" {
+					cur.Type = "content"
+				}
+				cur.Order = order
+				order++
 				out = append(out, cur)
 			}
-
-			// count level
 			lvl := 0
 			for i := 0; i < len(trimmed) && trimmed[i] == '#'; i++ {
 				lvl++
 			}
-
-			// extract header text and strip trailing hashes
 			header := strings.TrimSpace(trimmed[lvl:])
 			header = strings.TrimRight(header, "# ")
 			header = strings.TrimSpace(header)
+			cur = Paragraph{Header: header, HeaderLevel: lvl, Type: "header"}
+			continue
+		}
 
-			cur = Paragraph{
-				Header:      header,
-				HeaderLevel: lvl,
-				Type:        "header",
+		// list items
+		if strings.HasPrefix(trimmed, "- ") || strings.HasPrefix(trimmed, "* ") || strings.HasPrefix(trimmed, "+ ") || isOrderedList(trimmed) {
+			if cur.Type == "list" {
+				appendLine(line)
+			} else {
+				if cur.Header != "" || cur.Body != "" {
+					if cur.Type == "" {
+						cur.Type = "content"
+					}
+					cur.Order = order
+					order++
+					out = append(out, cur)
+				}
+				cur = Paragraph{Type: "list", Body: line}
 			}
 			continue
 		}
 
+		// blockquote
+		if strings.HasPrefix(trimmed, ">") {
+			if cur.Type == "blockquote" {
+				appendLine(line)
+			} else {
+				if cur.Header != "" || cur.Body != "" {
+					if cur.Type == "" {
+						cur.Type = "content"
+					}
+					cur.Order = order
+					order++
+					out = append(out, cur)
+				}
+				cur = Paragraph{Type: "blockquote", Body: line}
+			}
+			continue
+		}
+
+		// image (inline or HTML)
+		if strings.HasPrefix(trimmed, "![") || strings.HasPrefix(trimmed, "<img ") {
+			if cur.Header != "" || cur.Body != "" {
+				if cur.Type == "" {
+					cur.Type = "content"
+				}
+				cur.Order = order
+				order++
+				out = append(out, cur)
+			}
+			p := Paragraph{Type: "image", Body: line, Order: order}
+			order++
+			out = append(out, p)
+			cur = Paragraph{}
+			continue
+		}
+
+		// default: content
+		if cur.Type == "" {
+			cur.Type = "content"
+		}
 		appendLine(line)
 	}
 
@@ -106,6 +207,8 @@ func Parse(input string) ([]Paragraph, error) {
 		if cur.Type == "" {
 			cur.Type = "content"
 		}
+		cur.Order = order
+		order++
 		out = append(out, cur)
 	}
 

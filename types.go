@@ -5,4 +5,5 @@ type Paragraph struct {
 	HeaderLevel int
 	Body        string
 	Type        string
+	Order       int
 }

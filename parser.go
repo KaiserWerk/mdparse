@@ -48,7 +48,71 @@ func Read(input string, markdown *string, v any) error {
 }
 
 func Parse(input string) ([]Paragraph, error) {
-	panic("implement me")
+	sc := bufio.NewScanner(strings.NewReader(input))
+	sc.Buffer(make([]byte, 0, 64*1024), 1024*1024)
+	var out []Paragraph
+	var cur Paragraph
+	inCode := false
+
+	appendLine := func(s string) {
+		if cur.Body != "" {
+			cur.Body += "\n"
+		}
+		cur.Body += s
+	}
+
+	for sc.Scan() {
+		line := sc.Text()
+		trimmed := strings.TrimSpace(line)
+
+		if strings.HasPrefix(trimmed, "```") || strings.HasPrefix(trimmed, "~~~") {
+			inCode = !inCode
+			appendLine(line)
+			continue
+		}
+
+		if !inCode && strings.HasPrefix(trimmed, "#") {
+			// flush previous paragraph (set type if missing)
+			if cur.Header != "" || cur.Body != "" {
+				if cur.Type == "" {
+					cur.Type = "content"
+				}
+				out = append(out, cur)
+			}
+
+			// count level
+			lvl := 0
+			for i := 0; i < len(trimmed) && trimmed[i] == '#'; i++ {
+				lvl++
+			}
+
+			// extract header text and strip trailing hashes
+			header := strings.TrimSpace(trimmed[lvl:])
+			header = strings.TrimRight(header, "# ")
+			header = strings.TrimSpace(header)
+
+			cur = Paragraph{
+				Header:      header,
+				HeaderLevel: lvl,
+				Type:        "header",
+			}
+			continue
+		}
+
+		appendLine(line)
+	}
+
+	if cur.Header != "" || cur.Body != "" {
+		if cur.Type == "" {
+			cur.Type = "content"
+		}
+		out = append(out, cur)
+	}
+
+	if err := sc.Err(); err != nil {
+		return nil, err
+	}
+	return out, nil
 }
 
 func extract(data []byte) (hasFrontmatter bool, frontmatter string, markdown string, err error) {

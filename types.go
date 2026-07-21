@@ -1,6 +1,8 @@
 package mdparse
 
 type Paragraph struct {
-	Header string
-	Body   string
+	Header      string
+	HeaderLevel int
+	Body        string
+	Type        string
 }
